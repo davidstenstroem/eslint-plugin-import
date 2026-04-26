@@ -16,6 +16,7 @@
     "LICENSE",
     "docs",
     "lib",
+    "src",
     "config",
     "memo-parser/{*.js,LICENSE,*.md}",
     "index.d.ts"
@@ -23,6 +24,7 @@
   "scripts": {
     "prebuild": "rimraf lib",
     "build": "babel --quiet --out-dir lib src",
+    "prepare": "npm run build",
     "postbuild": "npm run copy-metafiles",
     "copy-metafiles": "node --require babel-register ./scripts/copyMetafiles",
     "watch": "npm run tests-only -- -- --watch",
@@ -81,7 +83,7 @@
     "chai": "^4.3.10",
     "cross-env": "^4.0.0",
     "escope": "^3.6.0",
-    "eslint": "^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9",
+    "eslint": "^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9 || ^10",
     "eslint-doc-generator": "^1.6.1",
     "eslint-import-resolver-node": "file:./resolvers/node",
     "eslint-import-resolver-typescript": "^1.0.2 || ^1.1.1",
@@ -107,12 +109,12 @@
     "rimraf": "^2.7.1",
     "safe-publish-latest": "^2.0.0",
     "sinon": "^2.4.1",
-    "tmp": "^0.2.1",
+    "tmp": "^0.2.5",
     "typescript": "^2.8.1 || ~3.9.5 || ~4.5.2",
     "typescript-eslint-parser": "^15 || ^20 || ^22"
   },
   "peerDependencies": {
-    "eslint": "^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9"
+    "eslint": "^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9 || ^10"
   },
   "dependencies": {
     "@rtsao/scc": "^1.1.0",
@@ -122,12 +124,12 @@
     "array.prototype.flatmap": "^1.3.3",
     "debug": "^3.2.7",
     "doctrine": "^2.1.0",
-    "eslint-import-resolver-node": "^0.3.9",
+    "eslint-import-resolver-node": "^0.3.10",
     "eslint-module-utils": "^2.12.1",
     "hasown": "^2.0.2",
     "is-core-module": "^2.16.1",
     "is-glob": "^4.0.3",
-    "minimatch": "^3.1.2",
+    "minimatch": "^3.1.5",
     "object.fromentries": "^2.0.8",
     "object.groupby": "^1.0.3",
     "object.values": "^1.2.1",

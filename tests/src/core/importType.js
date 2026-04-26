@@ -48,6 +48,15 @@ describe('importType(name)', function () {
     expect(importType('@eslint/import-test-order-redirect-scoped/module', context)).to.equal('external');
   });
 
+  it("should return 'external' for symlinked modules in node_modules even if realpath is outside", function () {
+    // eslint-import-test-order-redirect is a symlink in node_modules/ pointing
+    // to tests/files/order-redirect/. When resolve follows symlinks (the default),
+    // the resolved path is under tests/files/, not node_modules/. The module should
+    // still be classified as external because it exists in node_modules/.
+    expect(importType('eslint-import-test-order-redirect', context)).to.equal('external');
+    expect(importType('@eslint/import-test-order-redirect-scoped', context)).to.equal('external');
+  });
+
   it("should return 'internal' for non-builtins resolved outside of node_modules", function () {
     const pathContext = testContext({ 'import/resolver': { node: { paths: [pathToTestFiles] } } });
     expect(importType('importType', pathContext)).to.equal('internal');
@@ -73,6 +82,7 @@ describe('importType(name)', function () {
   });
 
   it("should return 'internal' for aliased internal modules that look like core modules (webpack resolver)", function () {
+    this.timeout(10000); // initial load of the webpack resolver is slow on old Node + macOS CI
     const webpackConfig = { resolve: { modules: [pathToTestFiles, 'node_modules'] } };
     const pathContext = testContext({ 'import/resolver': { webpack: { config: webpackConfig } } });
     expect(importType('constants/index', pathContext)).to.equal('internal');
@@ -89,6 +99,19 @@ describe('importType(name)', function () {
     const pathContext = testContext({ 'import/resolver': { webpack: { config: webpackConfig } } });
     expect(importType('@/api/service', pathContext)).to.equal('internal');
     expect(importType('@/does-not-exist', pathContext)).to.equal('unknown');
+  });
+
+  it("should return 'internal' for aliases that resolve outside the package root but not in node_modules", function () {
+    // Simulates a monorepo or workspace scenario where an alias resolves to a sibling package.
+    // The resolved path is OUTSIDE the current package root (alias-outside-package/)
+    // but is NOT in node_modules — it should be classified as 'internal', not 'external'.
+    const alias = { 'my-alias': path.join(pathToTestFiles, 'internal-modules') };
+    const webpackConfig = { resolve: { alias } };
+    const aliasContext = {
+      getFilename() { return testFilePath('alias-outside-package/foo.js'); },
+      settings: { 'import/resolver': { webpack: { config: webpackConfig } } },
+    };
+    expect(importType('my-alias/api/service', aliasContext)).to.equal('internal');
   });
 
   it("should return 'parent' for internal modules that go through the parent", function () {

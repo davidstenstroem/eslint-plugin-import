@@ -1,4 +1,5 @@
 import { isAbsolute as nodeIsAbsolute, relative, resolve as nodeResolve } from 'path';
+import { statSync } from 'fs';
 import isCoreModule from 'is-core-module';
 
 import resolve from 'eslint-module-utils/resolve';
@@ -64,16 +65,33 @@ function isExternalPath(path, context) {
 
   const { settings } = context;
   const packagePath = getContextPackagePath(context);
-
-  if (relative(packagePath, path).startsWith('..')) {
-    return true;
-  }
-
   const folders = settings && settings['import/external-module-folders'] || ['node_modules'];
+
+  const isOutsidePackage = relative(packagePath, path).startsWith('..');
+
   return folders.some((folder) => {
+    // For absolute folder paths in external-module-folders, check directly
+    if (nodeIsAbsolute(folder)) {
+      return !relative(folder, path).startsWith('..');
+    }
+
+    // Check if the resolved path is under this external folder relative to the package
     const folderPath = nodeResolve(packagePath, folder);
-    const relativePath = relative(folderPath, path);
-    return !relativePath.startsWith('..');
+    if (!relative(folderPath, path).startsWith('..')) {
+      return true;
+    }
+
+    // For paths outside the package root (e.g., hoisted deps in a monorepo),
+    // check if the external module folder appears as a path segment in the resolved path.
+    // This detects e.g. /monorepo/node_modules/lodash (hoisted) → external,
+    // but NOT /monorepo/packages/shared/src (a monorepo sibling or alias target).
+    if (isOutsidePackage) {
+      const normalizedPath = path.replace(/\\/g, '/');
+      const cleanFolder = folder.replace(/[/\\]+$/, '');
+      return normalizedPath.includes(`/${cleanFolder}/`);
+    }
+
+    return false;
   });
 }
 
@@ -81,12 +99,39 @@ function isInternalPath(path, context) {
   if (!path) {
     return false;
   }
-  const packagePath = getContextPackagePath(context);
-  return !relative(packagePath, path).startsWith('../');
+  // A resolved path that is not classified as external is internal.
+  // This correctly handles aliases and monorepo siblings that resolve to paths
+  // outside the package root but are not in any external module folder (e.g., node_modules).
+  return !isExternalPath(path, context);
 }
 
 function isExternalLookingName(name) {
   return isModule(name) || isScoped(name);
+}
+
+function isInExternalModuleFolder(name, context) {
+  const packagePath = getContextPackagePath(context);
+  const { settings } = context;
+  const folders = settings && settings['import/external-module-folders'] || ['node_modules'];
+  const base = baseModule(name);
+
+  return folders.some((folder) => {
+    if (nodeIsAbsolute(folder)) {
+      try { statSync(nodeResolve(folder, base)); return true; } catch (e) { return false; }
+    }
+    // Walk up directories checking each external module folder
+    let dir = packagePath;
+    while (true) { // eslint-disable-line no-constant-condition
+      try {
+        statSync(nodeResolve(dir, folder, base));
+        return true;
+      } catch (e) { /* continue */ }
+      const parent = nodeResolve(dir, '..');
+      if (parent === dir) { break; }
+      dir = parent;
+    }
+    return false;
+  });
 }
 
 function typeTest(name, context, path) {
@@ -98,6 +143,9 @@ function typeTest(name, context, path) {
   if (isIndex(name, settings, path)) { return 'index'; }
   if (isRelativeToSibling(name, settings, path)) { return 'sibling'; }
   if (isExternalPath(path, context)) { return 'external'; }
+  // Symlinked external modules may realpath outside node_modules.
+  // Check if the base module exists in any external module folder.
+  if (path && isExternalLookingName(name) && isInExternalModuleFolder(name, context)) { return 'external'; }
   if (isInternalPath(path, context)) { return 'internal'; }
   if (isExternalLookingName(name)) { return 'external'; }
   return 'unknown';

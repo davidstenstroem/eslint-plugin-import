@@ -43,10 +43,33 @@ if [[ "$TRAVIS_NODE_VERSION" -lt "8" ]]; then
   npm i --no-save eslint-import-resolver-typescript@1.0.2
 fi
 
+# linklocal (pretest) symlinks the local resolver source, but old npm doesn't install its nested deps
+if [[ "$TRAVIS_NODE_VERSION" -lt "10" ]]; then
+  for dir in resolvers/*/; do
+    echo "Installing dependencies for ${dir}..."
+    (cd "$dir" && npm install)
+  done
+fi
+
 if [ "${ESLINT_VERSION}" = '8' ]; then
   # This is a workaround for the crash in the initial processing of the ESLint class.
   echo "Installing self"
   npm i --no-save eslint-plugin-import@'.' -f
   echo "Build self"
   npm run build
+fi
+
+# ESLint 10 requires newer parsers
+if [[ "$ESLINT_VERSION" -ge "10" ]]; then
+  echo "Installing @typescript-eslint/parser v8 for ESLint 10..."
+  npm i --no-save @typescript-eslint/parser@8
+
+  echo "Installing @angular-eslint/template-parser v21.3.0+ for ESLint 10..."
+  npm i --no-save '@angular-eslint/template-parser@^21.3.0'
+
+  # @babel/eslint-parser v8 requires Node ^20.19.0 || >=22.12.0; v7 doesn't support ESLint 10
+  if [[ "$TRAVIS_NODE_VERSION" -eq "20" ]] || [[ "$TRAVIS_NODE_VERSION" -ge "22" ]]; then
+    echo "Installing @babel/eslint-parser v8 for ESLint 10..."
+    npm i --no-save @babel/core@'^8.0.0-rc.2' @babel/eslint-parser@'^8.0.0-rc.2'
+  fi
 fi

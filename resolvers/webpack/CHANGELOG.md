@@ -5,6 +5,9 @@ This change log adheres to standards from [Keep a CHANGELOG](https://keepachange
 
 ## Unreleased
 
+## 0.13.11 - 2026-04-01
+- [deps] update `is-core-module`, `is-regex`, `lodash`, `resolve`
+
 ## 0.13.10 - 2024-12-10
 - [new] add cache option ([#3100], thanks [@seiyab])
 
